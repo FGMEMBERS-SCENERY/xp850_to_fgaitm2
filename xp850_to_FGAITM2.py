@@ -26,8 +26,11 @@
 # Your groundnet will be newGroundNet.xml
 # Add parking places separately by hand.
 
-from lxml import etree
+sortsOfLine = ["Solid Yellow (Black)", "Solid Yellow"]
+
+import xml.etree.ElementTree as ET
 import os
+from xml.dom.minidom import parseString
 
 def latNS (coord):
     line = ""
@@ -49,29 +52,32 @@ def lonEW (coord):
     line = line + " " + str ("%.3f" % (60 * min))
     return line
 
-basedir = os.getcwd()
-wed_file = etree.parse (os.path.join (basedir,"earth.wed.xml"))
-wed_objs = wed_file.getroot() [0] # now we take into account only objects, without prefs
-
 taxinodes = []
 idtaxinodes = []
 
 #find LinearFeatures with Solid Yellow
 parents = []
-for obj in wed_objs:
-    for mrks in obj:
-        if mrks.tag == "markings":
-            for mrk in mrks:
-                if (mrk.get ("value") == "Solid Yellow"):
-                    if obj.get("parent_id") not in parents: parents.append (obj.get("parent_id"))
+filexml = ET.parse  ("earth.wed.xml")
+doc = filexml.getroot()
+objects = doc.find("objects")
+
+
+for obj in objects:
+	for markings in obj.getiterator ("markings"):
+		for marking in markings.getiterator ("marking"):
+			if marking.attrib["value"] in sortsOfLine:
+				parentID = obj.attrib["parent_id"]
+				if parentID not in parents:
+					parents.append (parentID)
 
 #find points
+
 points =[]
 twyseg = []
-for obj in wed_objs:
+for obj in objects:
     if obj.get ("id") in parents:
         for src in obj:
-            if src.tag == ("sources"):
+            if src.tag == ("children"):
                 segment = []
                 for child in src:
                     if child.tag == "child":
@@ -81,8 +87,9 @@ for obj in wed_objs:
                 for s in range (len (segment) - 1):
                     twyseg.append ([segment [s], segment [s+1], obj.get ("id")])
 
+
 #make point list
-for obj in wed_objs:
+for obj in objects:
     if obj.get ("id") in points:
         for attr in obj:
             if attr.tag == "point":
@@ -113,18 +120,37 @@ for p in taxinodes:
                 if t[1] == i[0]:
                     t[1] = pid
 
-#Save
-file_groundnet = open (os.path.join (basedir,  "newGroundNet.xml"), "w")
-file_groundnet.writelines( "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" + "\r\n")
-file_groundnet.writelines( "<groundnet>" + "\r\n")
-file_groundnet.writelines( "  <TaxiNodes>" + "\r\n")
-                
-for line in taxinodes: file_groundnet.writelines('    <node index="' + line[0] + '" lat="' + latNS (line[1]) + '" lon="' + lonEW(line[2]) + '" isOnRunway="0" holdPointType="none" />' + "\r\n")
-file_groundnet.writelines( "  </TaxiNodes>" + "\r\n")
-file_groundnet.writelines( "  <TaxiWaySegments>" + "\r\n")
+groundnet = ET.Element("groundnet")
+
+TaxiNodes = ET.SubElement (groundnet, "TaxiNodes")
+for line in taxinodes:
+	node = ET.SubElement(TaxiNodes, "node")
+	node.set ("index", line [0])
+	node.set ("lat", latNS (line[1]))
+	node.set ("lon", lonEW (line[2]))
+	node.set ("isOnRunway", "0")
+	node.set ("holdPointType", "none")
+
+TaxiWaySegments = ET.SubElement (groundnet, "TaxiWaySegments")
 for line in twyseg:
-    file_groundnet.writelines('    <arc begin="' + line[0] + '" end="' + line[1] + '" isPushBackRoute="0" name="' + line[2] + '" />' + "\r\n")
-    file_groundnet.writelines('    <arc begin="' + line[1] + '" end="' + line[0] + '" isPushBackRoute="0" name="' + line[2] + '" />' + "\r\n")
-file_groundnet.writelines( "  </TaxiWaySegments>" + "\r\n")
-file_groundnet.writelines( "</groundnet>")
+	arc = ET.SubElement (TaxiWaySegments, "arc")
+	arc.set ("begin", line[0])
+	arc.set ("end", line[1])
+	arc.set ("isPushBackRoute", "0")
+	arc.set ("name", line[2])
+	#reverse arc
+	arc = ET.SubElement (TaxiWaySegments, "arc")
+	arc.set ("begin", line[1])
+	arc.set ("end", line[0])
+	arc.set ("isPushBackRoute", "0")
+	arc.set ("name", line[2])
+	
+
+
+#Save
+basedir = os.getcwd()
+file_groundnet = open (os.path.join (basedir,  "newGroundNet.xml"), "w")
+txt = ET.tostring (groundnet)
+ps = parseString (txt)
+file_groundnet.writelines (ps.toprettyxml(indent=" "))
 file_groundnet.close()
