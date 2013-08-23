@@ -120,7 +120,26 @@ for p in taxinodes:
                 if t[1] == i[0]:
                     t[1] = pid
 
+#Make XML
 groundnet = ET.Element("groundnet")
+
+#find parkings
+parkingList = ET.SubElement (groundnet, "parkingList")
+idx = 1
+for obj in objects:
+    if obj.get ("class") == "WED_RampPosition":
+        Parking = ET.SubElement(parkingList, "Parking")
+        Parking.set ("index", str (idx) )
+        Parking.set ("name", obj.find("hierarchy").get("name"))
+        Parking.set ("lat", obj.find("point").get("latitude"))
+        Parking.set ("lon", obj.find("point").get("longitude"))
+        Parking.set ("heading", obj.find("point").get("heading"))
+        #dummy below
+        Parking.set ("type", "gate")
+        Parking.set ("number", "")
+        Parking.set ("radius", "40")
+        Parking.set ("airlineCodes", "")
+        idx += 1
 
 TaxiNodes = ET.SubElement (groundnet, "TaxiNodes")
 for line in taxinodes:
