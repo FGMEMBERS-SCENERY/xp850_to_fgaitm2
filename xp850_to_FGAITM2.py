@@ -77,7 +77,7 @@ twyseg = []
 for obj in objects:
     if obj.get ("id") in parents:
         for src in obj:
-            if src.tag == ("children"):
+            if src.tag == ("children") or src.tag == ("sources"):
                 segment = []
                 for child in src:
                     if child.tag == "child":
