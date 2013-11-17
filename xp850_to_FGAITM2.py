@@ -131,8 +131,8 @@ for obj in objects:
         Parking = ET.SubElement(parkingList, "Parking")
         Parking.set ("index", str (idx) )
         Parking.set ("name", obj.find("hierarchy").get("name"))
-        Parking.set ("lat", obj.find("point").get("latitude"))
-        Parking.set ("lon", obj.find("point").get("longitude"))
+        Parking.set ("lat", latNS (obj.find("point").get("latitude")))
+        Parking.set ("lon", lonEW (obj.find("point").get("longitude")))
         Parking.set ("heading", obj.find("point").get("heading"))
         #dummy below
         Parking.set ("type", "gate")
